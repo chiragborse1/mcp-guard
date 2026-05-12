@@ -2,6 +2,16 @@
 
 All notable changes to `mcp-guard` are documented here.
 
+## v0.6.0
+
+- Added inline allow comments with `mcp-guard: allow` and `mcp-guard: ignore`.
+- Reduced generic false positives for plain documentation URLs.
+
+## v0.5.0
+
+- Added packaging metadata polish for GitHub and future PyPI publishing.
+- Added `CHANGELOG.md`, `CONTRIBUTING.md`, a release checklist, and issue templates.
+
 ## v0.4.0
 
 - Added `--staged` mode for scanning only staged Git files.

@@ -268,8 +268,13 @@ def _scan_text(text: str, rel_path: str, is_mcp_config: bool) -> list[Finding]:
             secret = match.group(pattern.secret_group).rstrip("',\")]} \t\r\n")
             if not _looks_like_secret(secret):
                 continue
+            if pattern.kind == "Generic secret assignment" and not _looks_like_generic_secret(secret):
+                continue
 
             start, end = match.span(pattern.secret_group)
+            if _has_allow_comment(text, start):
+                continue
+
             dedupe_key = (start, end, pattern.kind)
             if dedupe_key in seen_spans:
                 continue
@@ -308,6 +313,9 @@ def _scan_mcp_json(text: str, rel_path: str) -> list[Finding]:
             continue
 
         value_offset = text.find(value)
+        if _has_allow_comment(text, value_offset if value_offset >= 0 else 0):
+            continue
+
         line, column = _line_column(text, value_offset if value_offset >= 0 else 0)
         findings.append(
             Finding(
@@ -347,6 +355,42 @@ def _looks_like_secret(value: str) -> bool:
     ):
         return False
     return True
+
+
+def _looks_like_generic_secret(value: str) -> bool:
+    stripped = value.strip().lower()
+    if stripped.startswith(("http://", "https://")):
+        return False
+    return True
+
+
+def _has_allow_comment(text: str, offset: int) -> bool:
+    current_line = _line_at_offset(text, offset).lower()
+    previous_line = _previous_line_at_offset(text, offset).lower()
+    return _is_allow_comment(current_line) or _is_allow_comment(previous_line)
+
+
+def _is_allow_comment(line: str) -> bool:
+    return "mcp-guard: allow" in line or "mcp-guard: ignore" in line
+
+
+def _line_at_offset(text: str, offset: int) -> str:
+    offset = max(offset, 0)
+    line_start = text.rfind("\n", 0, offset) + 1
+    line_end = text.find("\n", offset)
+    if line_end == -1:
+        line_end = len(text)
+    return text[line_start:line_end]
+
+
+def _previous_line_at_offset(text: str, offset: int) -> str:
+    offset = max(offset, 0)
+    current_start = text.rfind("\n", 0, offset) + 1
+    if current_start <= 1:
+        return ""
+    previous_end = current_start - 1
+    previous_start = text.rfind("\n", 0, previous_end) + 1
+    return text[previous_start:previous_end]
 
 
 def _line_column(text: str, offset: int) -> tuple[int, int]:

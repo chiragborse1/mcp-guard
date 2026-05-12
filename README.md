@@ -165,6 +165,17 @@ examples/unsafe-mcp-config/
 
 When you scan a directory directly, `mcp-guard` reads that directory's own `.mcpguardignore`. This repo ignores `examples/unsafe-mcp-config/` during root scans, but you can still scan that folder directly.
 
+For a single known-safe fake value, add an inline allow comment on the same line or the line immediately before it:
+
+```text
+# mcp-guard: allow - fake local fixture
+OPENAI_API_KEY=sk-p...7890
+
+ANTHROPIC_API_KEY=sk-a...7890 # mcp-guard: ignore
+```
+
+Use allow comments sparingly. Prefer `.mcpguardignore` for whole fixture directories.
+
 ## Example Scan
 
 This repo includes fake unsafe files for testing:

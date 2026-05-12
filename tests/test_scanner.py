@@ -153,6 +153,36 @@ def test_scan_ignores_method_call_assignments(tmp_path: Path) -> None:
     assert result.findings == []
 
 
+def test_scan_respects_inline_allow_comments(tmp_path: Path) -> None:
+    sample = tmp_path / ".env"
+    sample.write_text(
+        "\n".join(
+            [
+                "# mcp-guard: allow - fake local fixture",
+                "OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz123456",
+                "ANTHROPIC_API_KEY=sk-ant-abcdefghijklmnopqrstuvwxyz123456 # mcp-guard: ignore",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = scan_path(tmp_path)
+
+    assert result.findings == []
+
+
+def test_generic_detection_ignores_plain_urls(tmp_path: Path) -> None:
+    sample = tmp_path / "settings.env"
+    sample.write_text(
+        "DOCS_TOKEN=https://example.com/docs/not-a-secret",
+        encoding="utf-8",
+    )
+
+    result = scan_path(tmp_path)
+
+    assert result.findings == []
+
+
 def test_example_folder_scan_detects_fake_secrets() -> None:
     example_dir = Path(__file__).parents[1] / "examples" / "unsafe-mcp-config"
 
