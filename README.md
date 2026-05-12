@@ -18,6 +18,12 @@ Install the latest version from GitHub with `pipx`:
 pipx install git+https://github.com/chiragborse1/mcp-guard.git
 ```
 
+PyPI publishing is planned. After the package is published, the install command will be:
+
+```bash
+pipx install mcp-guard
+```
+
 From a local checkout:
 
 ```bash
@@ -278,6 +284,10 @@ Run the local CLI:
 ```bash
 uv run --extra dev mcp-guard .
 ```
+
+See `CONTRIBUTING.md` for contribution guidelines and `docs/RELEASE_CHECKLIST.md` for release steps.
+
+Release history is tracked in `CHANGELOG.md`.
 
 ## License
 

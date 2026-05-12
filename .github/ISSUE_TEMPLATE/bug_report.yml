@@ -1,0 +1,36 @@
+name: Bug report
+description: Report incorrect behavior in mcp-guard
+title: "Bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not paste real secrets. Use masked or fake values only.
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the bug and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run `mcp-guard ...`
+        2. See ...
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Output
+      description: Paste masked output only.
+      render: shell
+  - type: input
+    id: version
+    attributes:
+      label: mcp-guard version or commit
+      placeholder: v0.5.0

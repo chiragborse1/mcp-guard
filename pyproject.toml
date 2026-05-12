@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
 authors = [
-  { name = "mcp-guard contributors" }
+  { name = "Chirag Borse" }
 ]
 keywords = ["mcp", "security", "secrets", "cli", "scanner"]
 classifiers = [
@@ -27,6 +27,11 @@ classifiers = [
   "Topic :: Software Development :: Quality Assurance",
 ]
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/chiragborse1/mcp-guard"
+Repository = "https://github.com/chiragborse1/mcp-guard"
+Issues = "https://github.com/chiragborse1/mcp-guard/issues"
 
 [project.optional-dependencies]
 dev = [
