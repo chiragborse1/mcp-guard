@@ -43,6 +43,7 @@ mcp-guard .
 mcp-guard ./mcp.json
 mcp-guard . --fail-on high
 mcp-guard --json .
+mcp-guard . --sarif mcp-guard.sarif
 ```
 
 Exit codes:
@@ -100,6 +101,22 @@ Example:
 ```
 
 Secrets are masked in both text and JSON output.
+
+## SARIF Output
+
+Use SARIF when you want to upload findings to GitHub code scanning:
+
+```bash
+mcp-guard . --sarif mcp-guard.sarif
+```
+
+SARIF output includes rule metadata, severity-mapped levels, file locations, and masked values only. The command still prints normal terminal output and uses the same `--fail-on` exit-code behavior.
+
+For a permissive code-scanning upload that records medium findings but only fails on high severity:
+
+```bash
+mcp-guard . --fail-on high --sarif mcp-guard.sarif
+```
 
 ## Ignoring Files
 
@@ -185,6 +202,41 @@ jobs:
         run: pipx install git+https://github.com/chiragborse1/mcp-guard.git
       - name: Scan repository
         run: mcp-guard . --fail-on high
+```
+
+GitHub code scanning with SARIF upload:
+
+```yaml
+name: mcp-guard-sarif
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  security-events: write
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pipx
+        run: python -m pip install --user pipx
+      - name: Install mcp-guard
+        run: pipx install git+https://github.com/chiragborse1/mcp-guard.git
+      - name: Scan repository
+        run: mcp-guard . --fail-on high --sarif mcp-guard.sarif
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: mcp-guard.sarif
 ```
 
 ## Development

@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from .scanner import ScanError, scan_path
+from .sarif import write_sarif
 
 SEVERITY_ORDER = {
     "low": 0,
@@ -32,6 +33,11 @@ def build_parser() -> argparse.ArgumentParser:
         default="low",
         help="Exit 1 only when findings are at least this severity. Defaults to low.",
     )
+    parser.add_argument(
+        "--sarif",
+        metavar="PATH",
+        help="Write SARIF output to PATH for GitHub code scanning.",
+    )
     return parser
 
 
@@ -47,6 +53,13 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(f"mcp-guard: {exc}", file=sys.stderr)
         return 2
+
+    if args.sarif:
+        try:
+            write_sarif(result, Path(args.sarif))
+        except OSError as exc:
+            print(f"mcp-guard: could not write SARIF file: {exc}", file=sys.stderr)
+            return 2
 
     if args.json_output:
         print(json.dumps(result.to_dict(), indent=2))

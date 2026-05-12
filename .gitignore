@@ -10,4 +10,4 @@ build/
 venv/
 .env
 .DS_Store
-
+.codex
