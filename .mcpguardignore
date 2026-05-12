@@ -1,2 +1,3 @@
 # Test fixtures use fake secrets to verify scanner behavior.
 tests/
+examples/unsafe-mcp-config/

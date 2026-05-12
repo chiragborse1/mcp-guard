@@ -40,6 +40,7 @@ class Finding:
     line: int
     column: int
     kind: str
+    severity: str
     masked_secret: str
     context: str
     is_mcp_config: bool
@@ -50,6 +51,7 @@ class Finding:
             "line": self.line,
             "column": self.column,
             "kind": self.kind,
+            "severity": self.severity,
             "masked_secret": self.masked_secret,
             "context": self.context,
             "is_mcp_config": self.is_mcp_config,
@@ -79,6 +81,7 @@ class ScanError(Exception):
 @dataclass(frozen=True)
 class SecretPattern:
     kind: str
+    severity: str
     regex: re.Pattern[str]
     secret_group: str = "secret"
 
@@ -88,21 +91,22 @@ def _compile(pattern: str, flags: int = 0) -> re.Pattern[str]:
 
 
 SECRET_PATTERNS: tuple[SecretPattern, ...] = (
-    SecretPattern("OpenAI API key", re.compile(r"(?P<secret>sk-(?!ant-)(?:proj-)?[A-Za-z0-9_-]{20,})")),
-    SecretPattern("Anthropic API key", re.compile(r"(?P<secret>sk-ant-[A-Za-z0-9_-]{20,})")),
-    SecretPattern("GitHub token", re.compile(r"(?P<secret>gh[pousr]_[A-Za-z0-9_]{20,})")),
-    SecretPattern("Postgres URL", re.compile(r"(?P<secret>postgres(?:ql)?://[^\s'\"<>]+)", re.IGNORECASE)),
-    SecretPattern("Supabase URL", re.compile(r"(?P<secret>https://[a-z0-9-]+\.supabase\.co)", re.IGNORECASE)),
-    SecretPattern("Supabase anon/service key", re.compile(r"(?P<secret>eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,})")),
-    SecretPattern("Pinecone API key", _compile(r"['\"]?\b(?:pinecone(?:_api)?_key|PINECONE_API_KEY)\b['\"]?\s*[:=]\s*['\"]?(?P<secret>[A-Za-z0-9_-]{16,})")),
-    SecretPattern("Qdrant API key", _compile(r"['\"]?\b(?:qdrant(?:_api)?_key|QDRANT_API_KEY)\b['\"]?\s*[:=]\s*['\"]?(?P<secret>[A-Za-z0-9_-]{16,})")),
-    SecretPattern("Firecrawl API key", _compile(r"['\"]?\b(?:firecrawl(?:_api)?_key|FIRECRAWL_API_KEY)\b['\"]?\s*[:=]\s*['\"]?(?P<secret>[A-Za-z0-9_-]{16,})")),
-    SecretPattern("Brave Search API key", _compile(r"['\"]?\b(?:brave(?:_search)?(?:_api)?_key|BRAVE_SEARCH_API_KEY)\b['\"]?\s*[:=]\s*['\"]?(?P<secret>[A-Za-z0-9_-]{16,})")),
-    SecretPattern("Perplexity API key", _compile(r"['\"]?\b(?:perplexity(?:_api)?_key|PPLX_API_KEY|PERPLEXITY_API_KEY)\b['\"]?\s*[:=]\s*['\"]?(?P<secret>[A-Za-z0-9_-]{16,})")),
+    SecretPattern("OpenAI API key", "high", re.compile(r"(?P<secret>sk-(?!ant-)(?:proj-)?[A-Za-z0-9_-]{20,})")),
+    SecretPattern("Anthropic API key", "high", re.compile(r"(?P<secret>sk-ant-[A-Za-z0-9_-]{20,})")),
+    SecretPattern("GitHub token", "high", re.compile(r"(?P<secret>gh[pousr]_[A-Za-z0-9_]{20,})")),
+    SecretPattern("Postgres URL", "high", re.compile(r"(?P<secret>postgres(?:ql)?://[^\s'\"<>]+)", re.IGNORECASE)),
+    SecretPattern("Supabase URL", "medium", re.compile(r"(?P<secret>https://[a-z0-9-]+\.supabase\.co)", re.IGNORECASE)),
+    SecretPattern("Supabase anon/service key", "high", re.compile(r"(?P<secret>eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,})")),
+    SecretPattern("Pinecone API key", "high", _compile(r"['\"]?\b(?:pinecone(?:_api)?_key|PINECONE_API_KEY)\b['\"]?\s*[:=]\s*['\"]?(?P<secret>[A-Za-z0-9_-]{16,})")),
+    SecretPattern("Qdrant API key", "high", _compile(r"['\"]?\b(?:qdrant(?:_api)?_key|QDRANT_API_KEY)\b['\"]?\s*[:=]\s*['\"]?(?P<secret>[A-Za-z0-9_-]{16,})")),
+    SecretPattern("Firecrawl API key", "high", _compile(r"['\"]?\b(?:firecrawl(?:_api)?_key|FIRECRAWL_API_KEY)\b['\"]?\s*[:=]\s*['\"]?(?P<secret>[A-Za-z0-9_-]{16,})")),
+    SecretPattern("Brave Search API key", "high", _compile(r"['\"]?\b(?:brave(?:_search)?(?:_api)?_key|BRAVE_SEARCH_API_KEY)\b['\"]?\s*[:=]\s*['\"]?(?P<secret>[A-Za-z0-9_-]{16,})")),
+    SecretPattern("Perplexity API key", "high", _compile(r"['\"]?\b(?:perplexity(?:_api)?_key|PPLX_API_KEY|PERPLEXITY_API_KEY)\b['\"]?\s*[:=]\s*['\"]?(?P<secret>[A-Za-z0-9_-]{16,})")),
     SecretPattern(
         "Generic secret assignment",
+        "medium",
         _compile(
-            r"['\"]?\b(?:api[_-]?key|secret|password|passwd|pwd|token|access[_-]?token|auth[_-]?token)\b['\"]?"
+            r"['\"]?\b(?:[A-Za-z0-9_-]*(?:api[_-]?key|secret|password|passwd|pwd|token|access[_-]?token|auth[_-]?token)[A-Za-z0-9_-]*)\b['\"]?"
             r"\s*[:=]\s*['\"]?(?P<secret>[A-Za-z0-9][A-Za-z0-9_./+=:@-]{11,})"
         ),
     ),
@@ -272,6 +276,7 @@ def _scan_text(text: str, rel_path: str, is_mcp_config: bool) -> list[Finding]:
                     line=line,
                     column=column,
                     kind=pattern.kind,
+                    severity=pattern.severity,
                     masked_secret=mask_secret(secret),
                     context=_line_context(text, start, secret),
                     is_mcp_config=is_mcp_config,
@@ -293,10 +298,8 @@ def _scan_mcp_json(text: str, rel_path: str) -> list[Finding]:
             continue
 
         key = key_path[-1].lower() if key_path else ""
-        parent = key_path[-2].lower() if len(key_path) > 1 else ""
         if key not in MCP_SECRET_KEYS and not any(token in key for token in MCP_SECRET_KEYS):
-            if parent not in {"env", "headers"}:
-                continue
+            continue
 
         value_offset = text.find(value)
         line, column = _line_column(text, value_offset if value_offset >= 0 else 0)
@@ -306,6 +309,7 @@ def _scan_mcp_json(text: str, rel_path: str) -> list[Finding]:
                 line=line,
                 column=column,
                 kind="MCP config secret",
+                severity="high",
                 masked_secret=mask_secret(value),
                 context=".".join(key_path),
                 is_mcp_config=True,

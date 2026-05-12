@@ -31,6 +31,9 @@ def test_scan_detects_ai_and_database_secrets(tmp_path: Path) -> None:
     assert "Supabase URL" in kinds
     assert "Supabase anon/service key" in kinds
     assert "Pinecone API key" in kinds
+    assert all(finding.severity for finding in result.findings)
+    assert any(finding.kind == "OpenAI API key" and finding.severity == "high" for finding in result.findings)
+    assert any(finding.kind == "Supabase URL" and finding.severity == "medium" for finding in result.findings)
     assert all("abcdefghijklmnopqrstuvwxyz123456" not in finding.masked_secret for finding in result.findings)
 
 
@@ -95,6 +98,7 @@ def test_scan_detects_quoted_json_key_assignments(tmp_path: Path) -> None:
 
     assert "Qdrant API key" in kinds
     assert "Generic secret assignment" in kinds
+    assert any(finding.kind == "Generic secret assignment" and finding.severity == "medium" for finding in result.findings)
     assert all("correct-horse-battery-staple" not in finding.context for finding in result.findings)
 
 
@@ -147,3 +151,14 @@ def test_scan_ignores_method_call_assignments(tmp_path: Path) -> None:
     result = scan_path(tmp_path)
 
     assert result.findings == []
+
+
+def test_example_folder_scan_detects_fake_secrets() -> None:
+    example_dir = Path(__file__).parents[1] / "examples" / "unsafe-mcp-config"
+
+    result = scan_path(example_dir)
+    kinds = {finding.kind for finding in result.findings}
+
+    assert "OpenAI API key" in kinds
+    assert "MCP config secret" in kinds
+    assert all(finding.severity in {"high", "medium", "low"} for finding in result.findings)

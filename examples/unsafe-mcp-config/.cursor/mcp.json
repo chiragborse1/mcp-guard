@@ -1,0 +1,19 @@
+{
+  "mcpServers": {
+    "firecrawl": {
+      "command": "npx",
+      "args": ["-y", "firecrawl-mcp"],
+      "env": {
+        "FIRECRAWL_API_KEY": "fc_fake_example_key_1234567890"
+      }
+    },
+    "qdrant": {
+      "command": "uvx",
+      "args": ["mcp-server-qdrant"],
+      "env": {
+        "QDRANT_API_KEY": "qd_fake_example_key_1234567890",
+        "QDRANT_URL": "https://example-qdrant.invalid"
+      }
+    }
+  }
+}
