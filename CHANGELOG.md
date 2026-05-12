@@ -2,6 +2,12 @@
 
 All notable changes to `mcp-guard` are documented here.
 
+## v1.0.1
+
+- Renamed the PyPI distribution to `mcp-secrets-guard`.
+- Added PyPI Trusted Publishing workflow.
+- Added `*.sarif` to `.gitignore`.
+
 ## v1.0.0
 
 - Added `mcp-guard --version`.

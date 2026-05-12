@@ -96,7 +96,9 @@ def _rule_id(kind: str) -> str:
 
 
 def _package_version() -> str:
-    try:
-        return version("mcp-guard")
-    except PackageNotFoundError:
-        return "0.0.0"
+    for distribution in ("mcp-secrets-guard", "mcp-guard"):
+        try:
+            return version(distribution)
+        except PackageNotFoundError:
+            continue
+    return "0.0.0"

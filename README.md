@@ -12,16 +12,16 @@ AI agents and MCP servers often need API keys in files such as `.cursor/mcp.json
 
 ## Install
 
-Install the latest version from GitHub with `pipx`:
+Install from PyPI with `pipx`:
+
+```bash
+pipx install mcp-secrets-guard
+```
+
+Or install the latest version from GitHub:
 
 ```bash
 pipx install git+https://github.com/chiragborse1/mcp-guard.git
-```
-
-PyPI publishing is planned. After the package is published, the install command will be:
-
-```bash
-pipx install mcp-guard
 ```
 
 From a local checkout:
@@ -243,7 +243,7 @@ jobs:
       - name: Install pipx
         run: python -m pip install --user pipx
       - name: Install mcp-guard
-        run: pipx install git+https://github.com/chiragborse1/mcp-guard.git
+        run: pipx install mcp-secrets-guard
       - name: Scan repository
         run: mcp-guard . --fail-on high
 ```
@@ -273,7 +273,7 @@ jobs:
       - name: Install pipx
         run: python -m pip install --user pipx
       - name: Install mcp-guard
-        run: pipx install git+https://github.com/chiragborse1/mcp-guard.git
+        run: pipx install mcp-secrets-guard
       - name: Scan repository
         run: mcp-guard . --fail-on high --sarif mcp-guard.sarif
       - name: Upload SARIF
@@ -300,7 +300,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: chiragborse1/mcp-guard/.github/actions/mcp-guard@v1.0.0
+      - uses: chiragborse1/mcp-guard/.github/actions/mcp-guard@v1.0.1
         with:
           path: "."
           fail-on: high
@@ -325,7 +325,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: chiragborse1/mcp-guard/.github/actions/mcp-guard@v1.0.0
+      - uses: chiragborse1/mcp-guard/.github/actions/mcp-guard@v1.0.1
         with:
           path: "."
           fail-on: high

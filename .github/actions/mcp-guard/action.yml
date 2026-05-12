@@ -41,4 +41,4 @@ runs:
         if [ "${MCP_GUARD_STAGED}" = "true" ]; then
           args+=("--staged")
         fi
-        python -m pipx run --spec git+https://github.com/chiragborse1/mcp-guard.git mcp-guard "${args[@]}"
+        python -m pipx run --spec mcp-secrets-guard mcp-guard "${args[@]}"

@@ -36,4 +36,13 @@ git push origin main --tags
 
 ## PyPI
 
-Do not publish to PyPI unless credentials are configured and publishing has been explicitly approved.
+The PyPI distribution name is `mcp-secrets-guard`; the CLI command remains `mcp-guard`.
+
+Publishing uses PyPI Trusted Publishing through `.github/workflows/publish.yml`.
+
+Before publishing:
+
+- Confirm the PyPI project has a trusted publisher configured.
+- Confirm the GitHub environment is named `pypi`.
+- Confirm the workflow filename is `publish.yml`.
+- Publish a GitHub Release for the tag you want to publish.

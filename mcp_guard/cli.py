@@ -165,10 +165,12 @@ def _is_under_scan_root(candidate: Path, scan_root: Path) -> bool:
 
 
 def _package_version() -> str:
-    try:
-        return version("mcp-guard")
-    except PackageNotFoundError:
-        return "0.0.0"
+    for distribution in ("mcp-secrets-guard", "mcp-guard"):
+        try:
+            return version(distribution)
+        except PackageNotFoundError:
+            continue
+    return "0.0.0"
 
 
 if __name__ == "__main__":
