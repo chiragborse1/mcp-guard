@@ -2,6 +2,12 @@
 
 All notable changes to `mcp-guard` are documented here.
 
+## v1.0.2
+
+- Added README badges and a quick demo section.
+- Added `SECURITY.md`.
+- Updated roadmap now that PyPI publishing is live.
+
 ## v1.0.1
 
 - Renamed the PyPI distribution to `mcp-secrets-guard`.

@@ -1,5 +1,11 @@
 # mcp-guard
 
+[![PyPI](https://img.shields.io/pypi/v/mcp-secrets-guard.svg)](https://pypi.org/project/mcp-secrets-guard/)
+[![Python](https://img.shields.io/pypi/pyversions/mcp-secrets-guard.svg)](https://pypi.org/project/mcp-secrets-guard/)
+[![CI](https://github.com/chiragborse1/mcp-guard/actions/workflows/ci.yml/badge.svg)](https://github.com/chiragborse1/mcp-guard/actions/workflows/ci.yml)
+[![Publish](https://github.com/chiragborse1/mcp-guard/actions/workflows/publish.yml/badge.svg)](https://github.com/chiragborse1/mcp-guard/actions/workflows/publish.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 `mcp-guard` is a Python CLI for finding leaked secrets in MCP and AI-agent project files before they reach GitHub.
 
 It recursively scans a file or directory, pays special attention to MCP config files, masks every detected value, assigns severity levels, and exits non-zero when findings meet your configured threshold.
@@ -34,6 +40,22 @@ For local development:
 
 ```bash
 python -m pip install -e ".[dev]"
+```
+
+## Quick Demo
+
+```bash
+$ mcp-guard .
+mcp-guard scanned 26 file(s) under /path/to/project
+Skipped 7 file(s)
+No secrets found.
+
+$ mcp-guard examples/unsafe-mcp-config
+mcp-guard scanned 3 file(s) under /path/to/project/examples/unsafe-mcp-config
+
+Found 6 possible secret(s):
+HIGH   .cursor/mcp.json:7:31 Firecrawl API key [MCP config] -> fc_f...7890
+MEDIUM .env.example:4:26 Generic secret assignment -> corr...aple
 ```
 
 ## Usage
