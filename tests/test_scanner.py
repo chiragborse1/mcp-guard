@@ -110,3 +110,40 @@ def test_scan_single_file_uses_file_name(tmp_path: Path) -> None:
     assert result.files_scanned == 1
     assert result.findings[0].path == "settings.toml"
     assert result.findings[0].line == 1
+
+
+def test_scan_respects_mcpguardignore(tmp_path: Path) -> None:
+    (tmp_path / ".mcpguardignore").write_text(
+        "\n".join(
+            [
+                "# Test fixtures intentionally use fake secrets.",
+                "tests/",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "test_fixture.py").write_text(
+        "OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz123456",
+        encoding="utf-8",
+    )
+    (tmp_path / ".env").write_text(
+        "ANTHROPIC_API_KEY=sk-ant-abcdefghijklmnopqrstuvwxyz123456",
+        encoding="utf-8",
+    )
+
+    result = scan_path(tmp_path)
+
+    assert result.files_skipped == 1
+    assert len(result.findings) == 1
+    assert result.findings[0].kind == "Anthropic API key"
+
+
+def test_scan_ignores_method_call_assignments(tmp_path: Path) -> None:
+    sample = tmp_path / "scanner.py"
+    sample.write_text("secret = secret.strip()\n", encoding="utf-8")
+
+    result = scan_path(tmp_path)
+
+    assert result.findings == []

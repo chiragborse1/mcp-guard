@@ -1,0 +1,2 @@
+# Test fixtures use fake secrets to verify scanner behavior.
+tests/

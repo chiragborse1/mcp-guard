@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import fnmatch
 import json
 import os
 from pathlib import Path
@@ -30,6 +31,7 @@ MCP_CONFIG_SUFFIXES = {
 }
 
 MAX_FILE_BYTES = 2 * 1024 * 1024
+IGNORE_FILE_NAME = ".mcpguardignore"
 
 
 @dataclass(frozen=True)
@@ -124,11 +126,17 @@ def scan_path(path: Path) -> ScanResult:
     if not root.exists():
         raise ScanError(f"path does not exist: {path}")
 
+    ignore_patterns = _load_ignore_patterns(root)
     findings: list[Finding] = []
     files_scanned = 0
     files_skipped = 0
 
     for file_path in _iter_files(root):
+        rel_path = _display_path(file_path, root)
+        if _is_ignored(rel_path, ignore_patterns):
+            files_skipped += 1
+            continue
+
         if _should_skip_file(file_path):
             files_skipped += 1
             continue
@@ -140,7 +148,6 @@ def scan_path(path: Path) -> ScanResult:
             continue
 
         files_scanned += 1
-        rel_path = _display_path(file_path, root)
         is_mcp_config = _is_mcp_config(file_path)
         findings.extend(_scan_text(text, rel_path, is_mcp_config))
         if is_mcp_config:
@@ -176,6 +183,54 @@ def _should_skip_file(path: Path) -> bool:
 
 def _read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
+
+
+def _load_ignore_patterns(root: Path) -> tuple[str, ...]:
+    if root.is_file():
+        ignore_file = root.parent / IGNORE_FILE_NAME
+    else:
+        ignore_file = root / IGNORE_FILE_NAME
+
+    try:
+        lines = ignore_file.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return ()
+
+    patterns: list[str] = []
+    for line in lines:
+        pattern = line.strip()
+        if not pattern or pattern.startswith("#"):
+            continue
+        patterns.append(pattern)
+    return tuple(patterns)
+
+
+def _is_ignored(rel_path: str, patterns: tuple[str, ...]) -> bool:
+    normalized = rel_path.replace(os.sep, "/")
+    parts = normalized.split("/")
+
+    for pattern in patterns:
+        normalized_pattern = pattern.replace(os.sep, "/").lstrip("./")
+        if not normalized_pattern:
+            continue
+
+        if normalized_pattern.endswith("/"):
+            directory = normalized_pattern.rstrip("/")
+            if directory in parts or normalized.startswith(f"{directory}/"):
+                return True
+            continue
+
+        if "/" in normalized_pattern:
+            if fnmatch.fnmatch(normalized, normalized_pattern):
+                return True
+            continue
+
+        if fnmatch.fnmatch(Path(normalized).name, normalized_pattern):
+            return True
+        if any(fnmatch.fnmatch(part, normalized_pattern) for part in parts):
+            return True
+
+    return False
 
 
 def _display_path(path: Path, root: Path) -> str:
@@ -276,6 +331,10 @@ def _looks_like_secret(value: str) -> bool:
     if len(stripped) < 12:
         return False
     if stripped.lower() in {"changeme", "your_api_key", "your-api-key", "example", "password"}:
+        return False
+    if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+", stripped) and all(
+        len(part) <= 16 for part in stripped.split(".")
+    ):
         return False
     return True
 

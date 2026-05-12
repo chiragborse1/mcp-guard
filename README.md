@@ -38,6 +38,19 @@ Exit codes:
 - `1`: possible secrets found
 - `2`: scan could not run, such as a missing path
 
+## Ignoring Files
+
+Create a `.mcpguardignore` file in the scanned project root to ignore known-safe paths, such as test fixtures that intentionally contain fake secrets.
+
+Example:
+
+```text
+# Test fixtures intentionally use fake secrets.
+tests/
+examples/unsafe-demo/
+*.snapshot
+```
+
 ## What It Detects
 
 `mcp-guard` looks for:
