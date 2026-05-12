@@ -1,0 +1,319 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+import json
+import os
+from pathlib import Path
+import re
+from typing import Iterable
+
+
+SKIP_DIRS = {
+    ".git",
+    "node_modules",
+    "dist",
+    "build",
+    ".next",
+    "venv",
+    ".venv",
+    "__pycache__",
+}
+
+MCP_CONFIG_NAMES = {
+    "mcp.json",
+    "claude_desktop_config.json",
+}
+
+MCP_CONFIG_SUFFIXES = {
+    os.path.join(".cursor", "mcp.json"),
+    os.path.join(".vscode", "mcp.json"),
+}
+
+MAX_FILE_BYTES = 2 * 1024 * 1024
+
+
+@dataclass(frozen=True)
+class Finding:
+    path: str
+    line: int
+    column: int
+    kind: str
+    masked_secret: str
+    context: str
+    is_mcp_config: bool
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "path": self.path,
+            "line": self.line,
+            "column": self.column,
+            "kind": self.kind,
+            "masked_secret": self.masked_secret,
+            "context": self.context,
+            "is_mcp_config": self.is_mcp_config,
+        }
+
+
+@dataclass(frozen=True)
+class ScanResult:
+    root: str
+    files_scanned: int
+    files_skipped: int
+    findings: list[Finding]
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "root": self.root,
+            "files_scanned": self.files_scanned,
+            "files_skipped": self.files_skipped,
+            "findings": [finding.to_dict() for finding in self.findings],
+        }
+
+
+class ScanError(Exception):
+    """Raised when a requested scan cannot be performed."""
+
+
+@dataclass(frozen=True)
+class SecretPattern:
+    kind: str
+    regex: re.Pattern[str]
+    secret_group: str = "secret"
+
+
+def _compile(pattern: str, flags: int = 0) -> re.Pattern[str]:
+    return re.compile(pattern, flags | re.IGNORECASE)
+
+
+SECRET_PATTERNS: tuple[SecretPattern, ...] = (
+    SecretPattern("OpenAI API key", re.compile(r"(?P<secret>sk-(?!ant-)(?:proj-)?[A-Za-z0-9_-]{20,})")),
+    SecretPattern("Anthropic API key", re.compile(r"(?P<secret>sk-ant-[A-Za-z0-9_-]{20,})")),
+    SecretPattern("GitHub token", re.compile(r"(?P<secret>gh[pousr]_[A-Za-z0-9_]{20,})")),
+    SecretPattern("Postgres URL", re.compile(r"(?P<secret>postgres(?:ql)?://[^\s'\"<>]+)", re.IGNORECASE)),
+    SecretPattern("Supabase URL", re.compile(r"(?P<secret>https://[a-z0-9-]+\.supabase\.co)", re.IGNORECASE)),
+    SecretPattern("Supabase anon/service key", re.compile(r"(?P<secret>eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,})")),
+    SecretPattern("Pinecone API key", _compile(r"['\"]?\b(?:pinecone(?:_api)?_key|PINECONE_API_KEY)\b['\"]?\s*[:=]\s*['\"]?(?P<secret>[A-Za-z0-9_-]{16,})")),
+    SecretPattern("Qdrant API key", _compile(r"['\"]?\b(?:qdrant(?:_api)?_key|QDRANT_API_KEY)\b['\"]?\s*[:=]\s*['\"]?(?P<secret>[A-Za-z0-9_-]{16,})")),
+    SecretPattern("Firecrawl API key", _compile(r"['\"]?\b(?:firecrawl(?:_api)?_key|FIRECRAWL_API_KEY)\b['\"]?\s*[:=]\s*['\"]?(?P<secret>[A-Za-z0-9_-]{16,})")),
+    SecretPattern("Brave Search API key", _compile(r"['\"]?\b(?:brave(?:_search)?(?:_api)?_key|BRAVE_SEARCH_API_KEY)\b['\"]?\s*[:=]\s*['\"]?(?P<secret>[A-Za-z0-9_-]{16,})")),
+    SecretPattern("Perplexity API key", _compile(r"['\"]?\b(?:perplexity(?:_api)?_key|PPLX_API_KEY|PERPLEXITY_API_KEY)\b['\"]?\s*[:=]\s*['\"]?(?P<secret>[A-Za-z0-9_-]{16,})")),
+    SecretPattern(
+        "Generic secret assignment",
+        _compile(
+            r"['\"]?\b(?:api[_-]?key|secret|password|passwd|pwd|token|access[_-]?token|auth[_-]?token)\b['\"]?"
+            r"\s*[:=]\s*['\"]?(?P<secret>[A-Za-z0-9][A-Za-z0-9_./+=:@-]{11,})"
+        ),
+    ),
+)
+
+MCP_SECRET_KEYS = {
+    "api_key",
+    "apikey",
+    "api-key",
+    "key",
+    "token",
+    "access_token",
+    "auth_token",
+    "password",
+    "secret",
+}
+
+
+def scan_path(path: Path) -> ScanResult:
+    root = path.expanduser().resolve()
+    if not root.exists():
+        raise ScanError(f"path does not exist: {path}")
+
+    findings: list[Finding] = []
+    files_scanned = 0
+    files_skipped = 0
+
+    for file_path in _iter_files(root):
+        if _should_skip_file(file_path):
+            files_skipped += 1
+            continue
+
+        try:
+            text = _read_text(file_path)
+        except (OSError, UnicodeDecodeError):
+            files_skipped += 1
+            continue
+
+        files_scanned += 1
+        rel_path = _display_path(file_path, root)
+        is_mcp_config = _is_mcp_config(file_path)
+        findings.extend(_scan_text(text, rel_path, is_mcp_config))
+        if is_mcp_config:
+            findings.extend(_scan_mcp_json(text, rel_path))
+
+    findings = _dedupe_findings(findings)
+    findings.sort(key=lambda item: (item.path, item.line, item.column, item.kind))
+    return ScanResult(
+        root=str(root),
+        files_scanned=files_scanned,
+        files_skipped=files_skipped,
+        findings=findings,
+    )
+
+
+def _iter_files(root: Path) -> Iterable[Path]:
+    if root.is_file():
+        yield root
+        return
+
+    for current_root, dir_names, file_names in os.walk(root):
+        dir_names[:] = [name for name in dir_names if name not in SKIP_DIRS]
+        for file_name in file_names:
+            yield Path(current_root) / file_name
+
+
+def _should_skip_file(path: Path) -> bool:
+    try:
+        return path.stat().st_size > MAX_FILE_BYTES
+    except OSError:
+        return True
+
+
+def _read_text(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+def _display_path(path: Path, root: Path) -> str:
+    if root.is_file():
+        return path.name
+    try:
+        return str(path.relative_to(root))
+    except ValueError:
+        return str(path)
+
+
+def _is_mcp_config(path: Path) -> bool:
+    normalized = os.path.normpath(str(path))
+    if path.name in MCP_CONFIG_NAMES:
+        return True
+    return any(normalized.endswith(suffix) for suffix in MCP_CONFIG_SUFFIXES)
+
+
+def _scan_text(text: str, rel_path: str, is_mcp_config: bool) -> list[Finding]:
+    findings: list[Finding] = []
+    seen_spans: set[tuple[int, int, str]] = set()
+
+    for pattern in SECRET_PATTERNS:
+        for match in pattern.regex.finditer(text):
+            secret = match.group(pattern.secret_group).rstrip("',\")]} \t\r\n")
+            if not _looks_like_secret(secret):
+                continue
+
+            start, end = match.span(pattern.secret_group)
+            dedupe_key = (start, end, pattern.kind)
+            if dedupe_key in seen_spans:
+                continue
+            seen_spans.add(dedupe_key)
+
+            line, column = _line_column(text, start)
+            findings.append(
+                Finding(
+                    path=rel_path,
+                    line=line,
+                    column=column,
+                    kind=pattern.kind,
+                    masked_secret=mask_secret(secret),
+                    context=_line_context(text, start, secret),
+                    is_mcp_config=is_mcp_config,
+                )
+            )
+
+    return findings
+
+
+def _scan_mcp_json(text: str, rel_path: str) -> list[Finding]:
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        return []
+
+    findings: list[Finding] = []
+    for key_path, value in _walk_json(parsed):
+        if not isinstance(value, str) or not _looks_like_secret(value):
+            continue
+
+        key = key_path[-1].lower() if key_path else ""
+        parent = key_path[-2].lower() if len(key_path) > 1 else ""
+        if key not in MCP_SECRET_KEYS and not any(token in key for token in MCP_SECRET_KEYS):
+            if parent not in {"env", "headers"}:
+                continue
+
+        value_offset = text.find(value)
+        line, column = _line_column(text, value_offset if value_offset >= 0 else 0)
+        findings.append(
+            Finding(
+                path=rel_path,
+                line=line,
+                column=column,
+                kind="MCP config secret",
+                masked_secret=mask_secret(value),
+                context=".".join(key_path),
+                is_mcp_config=True,
+            )
+        )
+
+    return findings
+
+
+def _walk_json(value, path: tuple[str, ...] = ()):
+    if isinstance(value, dict):
+        for item_key, item_value in value.items():
+            yield from _walk_json(item_value, path + (str(item_key),))
+    elif isinstance(value, list):
+        for index, item_value in enumerate(value):
+            yield from _walk_json(item_value, path + (str(index),))
+    else:
+        yield path, value
+
+
+def _looks_like_secret(value: str) -> bool:
+    stripped = value.strip()
+    if len(stripped) < 12:
+        return False
+    if stripped.lower() in {"changeme", "your_api_key", "your-api-key", "example", "password"}:
+        return False
+    return True
+
+
+def _line_column(text: str, offset: int) -> tuple[int, int]:
+    offset = max(offset, 0)
+    line = text.count("\n", 0, offset) + 1
+    line_start = text.rfind("\n", 0, offset) + 1
+    return line, offset - line_start + 1
+
+
+def _line_context(text: str, offset: int, secret: str) -> str:
+    line_start = text.rfind("\n", 0, offset) + 1
+    line_end = text.find("\n", offset)
+    if line_end == -1:
+        line_end = len(text)
+    line = text[line_start:line_end].strip()
+    line = line.replace(secret, mask_secret(secret))
+    return line[:160]
+
+
+def mask_secret(secret: str) -> str:
+    secret = secret.strip()
+    if len(secret) <= 8:
+        return "*" * len(secret)
+    return f"{secret[:4]}...{secret[-4:]}"
+
+
+def _dedupe_findings(findings: list[Finding]) -> list[Finding]:
+    deduped: list[Finding] = []
+    seen: set[tuple[str, int, int, str, str]] = set()
+    for finding in findings:
+        if finding.kind == "MCP config secret":
+            key = (finding.path, finding.line, finding.column, finding.masked_secret, finding.kind)
+        else:
+            key = (finding.path, finding.line, finding.column, finding.masked_secret, "")
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(finding)
+    return deduped
