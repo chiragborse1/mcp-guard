@@ -44,6 +44,7 @@ mcp-guard ./mcp.json
 mcp-guard . --fail-on high
 mcp-guard --json .
 mcp-guard . --sarif mcp-guard.sarif
+mcp-guard . --staged
 ```
 
 Exit codes:
@@ -71,6 +72,31 @@ mcp-guard . --fail-on low
 ```
 
 For example, `--fail-on high` still prints medium findings, but exits `0` unless a high-severity finding exists.
+
+## Staged Files
+
+Use `--staged` to scan only files currently staged in Git:
+
+```bash
+mcp-guard . --staged
+```
+
+This is useful in pre-commit hooks because local untracked files and unstaged work are ignored.
+
+Example pre-commit configuration:
+
+```yaml
+repos:
+  - repo: local
+    hooks:
+      - id: mcp-guard
+        name: mcp-guard
+        entry: mcp-guard . --staged --fail-on high
+        language: system
+        pass_filenames: false
+```
+
+The same example is available at `examples/pre-commit/.pre-commit-config.yaml`.
 
 ## JSON Output
 

@@ -1,0 +1,8 @@
+repos:
+  - repo: local
+    hooks:
+      - id: mcp-guard
+        name: mcp-guard
+        entry: mcp-guard . --staged --fail-on high
+        language: system
+        pass_filenames: false

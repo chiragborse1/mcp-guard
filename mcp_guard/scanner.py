@@ -125,7 +125,7 @@ MCP_SECRET_KEYS = {
 }
 
 
-def scan_path(path: Path) -> ScanResult:
+def scan_path(path: Path, include_files: Iterable[Path] | None = None) -> ScanResult:
     root = path.expanduser().resolve()
     if not root.exists():
         raise ScanError(f"path does not exist: {path}")
@@ -135,7 +135,13 @@ def scan_path(path: Path) -> ScanResult:
     files_scanned = 0
     files_skipped = 0
 
-    for file_path in _iter_files(root):
+    file_paths = include_files if include_files is not None else _iter_files(root)
+    for file_path in file_paths:
+        file_path = file_path.expanduser().resolve()
+        if not file_path.exists() or not file_path.is_file():
+            files_skipped += 1
+            continue
+
         rel_path = _display_path(file_path, root)
         if _is_ignored(rel_path, ignore_patterns):
             files_skipped += 1

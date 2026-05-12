@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import subprocess
 
 from mcp_guard.cli import main
 
@@ -72,3 +73,43 @@ def test_cli_default_returns_one_for_any_finding(tmp_path: Path) -> None:
     )
 
     assert main([str(tmp_path)]) == 1
+
+
+def test_cli_staged_scans_only_staged_files(tmp_path: Path, capsys) -> None:
+    _git(tmp_path, "init")
+    staged = tmp_path / ".env"
+    unstaged = tmp_path / "local.env"
+    staged.write_text(
+        "OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz123456",
+        encoding="utf-8",
+    )
+    unstaged.write_text(
+        "ANTHROPIC_API_KEY=sk-ant-abcdefghijklmnopqrstuvwxyz123456",
+        encoding="utf-8",
+    )
+    _git(tmp_path, "add", ".env")
+
+    assert main([str(tmp_path), "--staged"]) == 1
+
+    output = capsys.readouterr().out
+    assert ".env" in output
+    assert "OpenAI API key" in output
+    assert "Anthropic API key" not in output
+
+
+def test_cli_staged_returns_zero_when_no_files_are_staged(tmp_path: Path, capsys) -> None:
+    _git(tmp_path, "init")
+    (tmp_path / ".env").write_text(
+        "OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz123456",
+        encoding="utf-8",
+    )
+
+    assert main([str(tmp_path), "--staged"]) == 0
+
+    output = capsys.readouterr().out
+    assert "scanned 0 file(s)" in output
+    assert "No secrets found." in output
+
+
+def _git(cwd: Path, *args: str) -> None:
+    subprocess.run(["git", "-C", str(cwd), *args], check=True, capture_output=True, text=True)
