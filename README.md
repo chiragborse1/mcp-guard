@@ -282,6 +282,54 @@ jobs:
           sarif_file: mcp-guard.sarif
 ```
 
+You can also use the bundled composite action:
+
+```yaml
+name: mcp-guard-action
+
+on:
+  pull_request:
+
+permissions:
+  security-events: write
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: chiragborse1/mcp-guard/.github/actions/mcp-guard@v0.7.0
+        with:
+          path: "."
+          fail-on: high
+          sarif: mcp-guard.sarif
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: mcp-guard.sarif
+```
+
+For PR-only terminal scanning without SARIF:
+
+```yaml
+name: mcp-guard-pr
+
+on:
+  pull_request:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: chiragborse1/mcp-guard/.github/actions/mcp-guard@v0.7.0
+        with:
+          path: "."
+          fail-on: high
+```
+
 ## Development
 
 Run tests:

@@ -2,6 +2,11 @@
 
 All notable changes to `mcp-guard` are documented here.
 
+## v0.7.0
+
+- Added a bundled composite GitHub Action wrapper.
+- Added PR scanning examples for terminal output and SARIF upload.
+
 ## v0.6.0
 
 - Added inline allow comments with `mcp-guard: allow` and `mcp-guard: ignore`.
