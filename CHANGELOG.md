@@ -2,6 +2,12 @@
 
 All notable changes to `mcp-guard` are documented here.
 
+## v1.0.0
+
+- Added `mcp-guard --version`.
+- Reduced duplicate MCP config findings by preferring provider-specific rules over generic matches.
+- Finalized README demo output and public release documentation.
+
 ## v0.7.0
 
 - Added a bundled composite GitHub Action wrapper.

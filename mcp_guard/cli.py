@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from importlib.metadata import PackageNotFoundError, version
 import json
 import subprocess
 import sys
@@ -22,6 +23,11 @@ def build_parser() -> argparse.ArgumentParser:
         description="Scan files for AI and MCP-related secrets.",
     )
     parser.add_argument("path", help="File or directory to scan.")
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"mcp-guard {_package_version()}",
+    )
     parser.add_argument(
         "--json",
         action="store_true",
@@ -156,6 +162,13 @@ def _is_under_scan_root(candidate: Path, scan_root: Path) -> bool:
     except ValueError:
         return False
     return True
+
+
+def _package_version() -> str:
+    try:
+        return version("mcp-guard")
+    except PackageNotFoundError:
+        return "0.0.0"
 
 
 if __name__ == "__main__":

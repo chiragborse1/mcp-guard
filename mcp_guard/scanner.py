@@ -418,15 +418,35 @@ def mask_secret(secret: str) -> str:
 
 
 def _dedupe_findings(findings: list[Finding]) -> list[Finding]:
+    grouped: dict[tuple[str, int, int, str], list[Finding]] = {}
+    for finding in findings:
+        key = (finding.path, finding.line, finding.column, finding.masked_secret)
+        grouped.setdefault(key, []).append(finding)
+
+    deduped: list[Finding] = []
+    for group in grouped.values():
+        specific = [
+            finding
+            for finding in group
+            if finding.kind not in {"MCP config secret", "Generic secret assignment"}
+        ]
+        if specific:
+            deduped.extend(_dedupe_exact(specific))
+        else:
+            generic = [finding for finding in group if finding.kind == "Generic secret assignment"]
+            if generic:
+                deduped.extend(_dedupe_exact(generic))
+            else:
+                deduped.extend(_dedupe_exact(group))
+    return deduped
+
+
+def _dedupe_exact(findings: list[Finding]) -> list[Finding]:
     deduped: list[Finding] = []
     seen: set[tuple[str, int, int, str, str]] = set()
     for finding in findings:
-        if finding.kind == "MCP config secret":
-            key = (finding.path, finding.line, finding.column, finding.masked_secret, finding.kind)
-        else:
-            key = (finding.path, finding.line, finding.column, finding.masked_secret, "")
-        if key in seen:
-            continue
-        seen.add(key)
-        deduped.append(finding)
+        key = (finding.path, finding.line, finding.column, finding.masked_secret, finding.kind)
+        if key not in seen:
+            seen.add(key)
+            deduped.append(finding)
     return deduped

@@ -77,7 +77,7 @@ def test_scan_flags_mcp_config_values(tmp_path: Path) -> None:
     result = scan_path(tmp_path)
 
     assert any(finding.is_mcp_config for finding in result.findings)
-    assert any(finding.kind == "MCP config secret" for finding in result.findings)
+    assert any(finding.kind == "Firecrawl API key" for finding in result.findings)
     assert all("fc_abcdefghijklmnopqrstuvwxyz123456" not in finding.masked_secret for finding in result.findings)
 
 
@@ -190,5 +190,6 @@ def test_example_folder_scan_detects_fake_secrets() -> None:
     kinds = {finding.kind for finding in result.findings}
 
     assert "OpenAI API key" in kinds
-    assert "MCP config secret" in kinds
+    assert "Firecrawl API key" in kinds
+    assert len(result.findings) == 6
     assert all(finding.severity in {"high", "medium", "low"} for finding in result.findings)

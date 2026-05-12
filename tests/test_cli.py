@@ -5,6 +5,15 @@ import subprocess
 from mcp_guard.cli import main
 
 
+def test_cli_version(capsys) -> None:
+    try:
+        main(["--version"])
+    except SystemExit as exc:
+        assert exc.code == 0
+
+    assert "mcp-guard" in capsys.readouterr().out
+
+
 def test_cli_returns_zero_when_clean(tmp_path: Path, capsys) -> None:
     (tmp_path / "README.md").write_text("no secrets here", encoding="utf-8")
 

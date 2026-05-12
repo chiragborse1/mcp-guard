@@ -45,6 +45,7 @@ mcp-guard <path>
 Examples:
 
 ```bash
+mcp-guard --version
 mcp-guard .
 mcp-guard ./mcp.json
 mcp-guard . --fail-on high
@@ -189,8 +190,8 @@ Expected output includes masked fake findings:
 ```text
 mcp-guard scanned 3 file(s) under /path/to/mcp-guard/examples/unsafe-mcp-config
 
-Found 8 possible secret(s):
-HIGH   .cursor/mcp.json:7:30 Firecrawl API key [MCP config] -> fc_f...7890
+Found 6 possible secret(s):
+HIGH   .cursor/mcp.json:7:31 Firecrawl API key [MCP config] -> fc_f...7890
 ```
 
 JSON:
@@ -299,7 +300,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: chiragborse1/mcp-guard/.github/actions/mcp-guard@v0.7.0
+      - uses: chiragborse1/mcp-guard/.github/actions/mcp-guard@v1.0.0
         with:
           path: "."
           fail-on: high
@@ -324,7 +325,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: chiragborse1/mcp-guard/.github/actions/mcp-guard@v0.7.0
+      - uses: chiragborse1/mcp-guard/.github/actions/mcp-guard@v1.0.0
         with:
           path: "."
           fail-on: high
@@ -347,6 +348,8 @@ uv run --extra dev mcp-guard .
 See `CONTRIBUTING.md` for contribution guidelines and `docs/RELEASE_CHECKLIST.md` for release steps.
 
 Release history is tracked in `CHANGELOG.md`.
+
+The current roadmap and future ideas are tracked in `docs/ROADMAP.md`.
 
 ## License
 
